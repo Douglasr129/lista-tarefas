@@ -36,7 +36,16 @@
                 :rules="checkPasswordRules"
                 @input="validatePasswords"
               />
-              <v-alert v-if="responseStatus" type="error" :value="responseStatus" />
+              <template v-if="responseStatus.length">
+                <v-alert type="error">
+                  <template v-for="(message, index) in responseStatus" :key="index">
+                    <label>{{ index + 1 }}.
+                      {{ message }}
+                    </label>
+                    <v-spacer />
+                  </template>
+                </v-alert>
+              </template>
               <v-btn type="submit" :disabled="!valid">
                 Cadastrar
               </v-btn>
@@ -52,10 +61,12 @@
 import { defineComponent, ref } from 'vue'
 import { useAuth } from '@/services/auth' // Importe a sua lógica de autenticação
 import type { User } from '@/interfaces/user';
+import { useRouter } from 'vue-router';
 
 export default defineComponent({
   name: 'Register',
   setup() {
+    const router = useRouter()
     const { register } = useAuth()
     const user = ref<User>({
       userName: '',
@@ -66,7 +77,7 @@ export default defineComponent({
     const password = ref('')
     const confirmPassword = ref('')
     const valid = ref(false)
-    const responseStatus = ref('')
+    const responseStatus = ref<string[]>([]);
 
     const nameRules = [
       (v: string) => !!v || 'Nome é obrigatório',
@@ -105,14 +116,28 @@ export default defineComponent({
       console.log("Dados puros para registro:", pureUser); // Verifique os valores aqui
 
       register(pureUser).then(() => {
-        responseStatus.value = '';
-      }).catch((error) => {
-        responseStatus.value = error.message;
+        responseStatus.value = [];
+        router.push({ name: '/tarefas' });
+      })
+      .catch((error) => {
+        responseStatus.value = error;
       });
     }
 
 
-    return { user, password, confirmPassword, valid, responseStatus, nameRules, emailRules, passwordRules, checkPasswordRules, validatePasswords, submit }
+    return {
+      user,
+      password,
+      confirmPassword,
+      valid,
+      responseStatus,
+      nameRules,
+      emailRules,
+      passwordRules,
+      checkPasswordRules,
+      validatePasswords,
+      submit
+    }
   }
 })
 </script>

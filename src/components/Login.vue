@@ -8,7 +8,16 @@
             <v-form ref="form" v-model="valid" @submit.prevent="submit">
               <v-text-field v-model="email" label="Email" type="email" required :rules="emailRules" />
               <v-text-field v-model="password" label="Senha" type="password" required :rules="passwordRules" />
-              <v-alert v-if="responseStatus" type="error" :value="responseStatus" />
+              <template v-if="responseStatus.length">
+                <v-alert type="error">
+                  <template v-for="(message, index) in responseStatus" :key="index">
+                    <label>{{ index + 1 }}.
+                      {{ message }}
+                    </label>
+                    <v-spacer />
+                  </template>
+                </v-alert>
+              </template>
               <v-btn type="submit" :disabled="!valid">
                 Login
               </v-btn>
@@ -22,16 +31,18 @@
 
 <script lang="ts">
 import { defineComponent, ref } from 'vue'
-import { useAuth } from '@/services/auth' // Importe a sua lógica de autenticação
+import { useAuth } from '@/services/auth'
+import { useRouter } from 'vue-router'
 
 export default defineComponent({
   name: 'Login',
   setup() {
+    const router = useRouter()
     const { login } = useAuth()
     const email = ref('')
     const password = ref('')
     const valid = ref(false)
-    const responseStatus = ref('')
+    const responseStatus = ref<string[]>([]);
 
     const emailRules = [
       (v: string) => !!v || 'E-mail é obrigatório',
@@ -47,10 +58,11 @@ export default defineComponent({
       valid.value = true
       login(email.value, password.value)
         .then(() => {
-          responseStatus.value = ''
+          responseStatus.value = [];
+          router.push({ name: '/tarefas' });
         })
         .catch((error) => {
-          responseStatus.value = error.message
+          responseStatus.value = error;
         })
     }
 
