@@ -3,7 +3,6 @@
     <v-toolbar color="teal-darken-1" extended light>
       <v-toolbar-title>Minhas Tarefas</v-toolbar-title>
       <v-spacer />
-      <v-btn color="grey-darken-4" icon="mdi-magnify" />
       <template #extension>
         <v-fab
           class="ms-4" color="blue-grey-lighten-2" icon="mdi-plus" location="bottom left"
@@ -23,8 +22,8 @@
               'mdi-checkbox-blank-circle-outline' }}
           </v-icon>
         </template>
-        <v-list-item-title>{{ tarefa.titulo }}</v-list-item-title>
-        <v-list-item-subtitle>{{ tarefa.descricao }}</v-list-item-subtitle>
+        <v-list-item-title :class="{ riscado: tarefa.concluida }">{{ tarefa.titulo }}</v-list-item-title>
+        <v-list-item-subtitle :class="{ riscado: tarefa.concluida }">{{ tarefa.descricao }}</v-list-item-subtitle>
         <template #append>
           <v-list-item-action>
             <v-btn color="grey-lighten-1" icon="mdi-eye" variant="text" @click="visualizarTarefa(tarefa)" />
@@ -98,16 +97,16 @@
 import { ref } from 'vue'
 import type { Tarefa } from '@/interfaces/tarefa';
 import { tarefaService } from '@/services/tarefa.Service';
+import { useTarefaStore } from '@/stores/tarefaStore';
 
 const props = defineProps<{ tarefas: Tarefa[] }>()
-const tarefas = ref(props.tarefas)
+const listaTarefa = ref(props.tarefas)
 const editDialog = ref(false)
 const detailDialog = ref(false)
 const remove = ref(false)
 const tarefaEdicao = ref<Tarefa>({ id: undefined, titulo: '', descricao: '', concluida: false })
 const valid = ref(false)
-
-
+const tarefaStore = useTarefaStore()
 
 const abrirDialogo = (tarefa?: Tarefa) => {
   if (tarefa) {
@@ -118,7 +117,7 @@ const abrirDialogo = (tarefa?: Tarefa) => {
   editDialog.value = true
 }
 const stringRules = [
-      (v: string) => v.length >= 6 || 'O campo deve ter pelo menos 2 caracteres'
+      (v: string) => v.length >= 2 || 'O campo deve ter pelo menos 2 caracteres'
     ]
 
 const submit = () => {
@@ -127,7 +126,8 @@ const submit = () => {
     tarefaEdicao.value.id = undefined;
     tarefaService.adicionar(tarefaEdicao.value)
       .then((req) => {
-        tarefas.value.push(req)
+        listaTarefa.value.push(req)
+        tarefaStore.adicionatarefa(req)
         showSnackbar('Tarefa adicionada com sucesso!', 3000)
         editDialog.value = false
       }).catch((error) => {
@@ -137,7 +137,14 @@ const submit = () => {
   } else {
     // Atualizar tarefa existente
     tarefaService.atualizar(tarefaEdicao.value.id!, tarefaEdicao.value)
-      .then(() => {
+      .then((req) => {
+        const tarefaIndex = listaTarefa.value.findIndex(tarefa => tarefa.id === tarefaEdicao.value.id)
+        if (tarefaIndex !== -1) {
+          listaTarefa.value[tarefaIndex] = { ...listaTarefa.value[tarefaIndex], ...req }
+        }
+        if (req.id) {
+          tarefaStore.atualizarTarefa(req.id, req);
+        }
         showSnackbar('Tarefa atualizada com sucesso!', 3000)
       }).catch((error) => {
         showSnackbar(`${error}`, 3000, 'error')
@@ -148,7 +155,20 @@ const submit = () => {
 }
 
 const confirmarConclusao = (tarefa: Tarefa) => {
-  if (confirm(!tarefa.concluida ? "Você realmente deseja finalizar esta tarefa?" : "Você realmente deseja reabrir esta tarefa?")) {
+  if (confirm("Você realmente deseja finalizar esta tarefa?")) {
+    tarefaService.atualizar(tarefa.id!, { ...tarefa, concluida: true })
+      .then((req) => {
+        const tarefaIndex = listaTarefa.value.findIndex(tarefa => tarefa.id === req.id)
+        if (tarefaIndex !== -1) {
+          listaTarefa.value.splice(tarefaIndex, 1)
+        }
+        tarefaStore.removertarefa(req)
+        tarefaStore.adicionaTarefaFinalizadas(req)
+        showSnackbar(`Tarefa finalizada com sucesso!`, 3000)
+      }).catch((error) => {
+        showSnackbar(`${error}`, 3000, 'error')
+        return
+      });
     tarefa.concluida = !tarefa.concluida
   }
 }
@@ -163,8 +183,20 @@ const editarTarefa = (tarefa: Tarefa) => {
   abrirDialogo(tarefa)
 }
 
+
 const excluirTarefa = (tarefa: Tarefa) => {
-  console.log('Excluir tarefa', tarefa)
+  tarefaService.deletar(tarefa.id!)
+    .then(() => {
+      const tarefaIndex = listaTarefa.value.findIndex(tarefa => tarefa.id === tarefaEdicao.value.id)
+      if (tarefaIndex !== -1) {
+        listaTarefa.value.splice(tarefaIndex, 1)
+      }
+      tarefaStore.removertarefa(tarefa)
+      showSnackbar(`Tarefa excluída com sucesso!`, 3000)
+    }).catch((error) => {
+      showSnackbar(`${error}`, 3000, 'error')
+      return
+    });
   detailDialog.value = false
 }
 // Definição do snackbar
@@ -190,4 +222,5 @@ const showSnackbar = (message: string, timeout = 3000, color = 'success') => {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.riscado { text-decoration: line-through; }
 </style>
