@@ -5,8 +5,34 @@ import type { User } from '@/interfaces/user'
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
-    user: ref<User | null>(JSON.parse(localStorage.getItem('userToken') || '')),
-    token: ref<string | null>(localStorage.getItem('accessToken'))
-  })
-})
+    user: ref<User | null>(null),
+    token: ref<string | null>(null)
+  }),
+  actions: {
+    initializeStore() {
+      const userToken = localStorage.getItem('userToken')
+      const accessToken = localStorage.getItem('accessToken')
 
+      if (userToken) {
+        try {
+          this.user = JSON.parse(userToken)
+        } catch (error) {
+          console.error('Erro ao analisar userToken:', error)
+          this.user = null
+        }
+      }
+
+      if (accessToken) {
+        this.token = accessToken
+      } else {
+        this.token = null
+      }
+    },
+    setUser(user: User | null) {
+      this.user = user
+    },
+    setToken(token: string | null) {
+      this.token = token
+    }
+  }
+})

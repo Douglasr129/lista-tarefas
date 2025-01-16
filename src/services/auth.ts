@@ -1,17 +1,17 @@
 import type { User } from '@/interfaces/user'
 import { useAuthStore } from '@/stores/authStore'
 import axios from 'axios'
-
 const axiosInstance = axios.create({
   baseURL: 'https://localhost:7105/api',
   headers: {
     'Content-Type': 'application/json',
-    Accept: 'application/json'
+    'Accept': 'application/json'
   }
 })
 const userStore = useAuthStore()
 
 const messages: string[] = []
+
 
 export function useAuth() {
   const login = async (email: string, password: string) => {

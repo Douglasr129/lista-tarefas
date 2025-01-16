@@ -12,7 +12,7 @@
           </v-card-text>
           <v-card-actions>
             <v-btn color="primary" @click="goHome">
-              Voltar para a Página Inicial
+              Voltar para a Página anterior
             </v-btn>
           </v-card-actions>
         </v-card>

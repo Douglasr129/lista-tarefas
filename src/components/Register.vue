@@ -99,22 +99,16 @@ export default defineComponent({
     ]
 
     const validatePasswords = () => {
-      // Atualiza as regras de validação da senha de confirmação
       checkPasswordRules[1] = (v: string) => v === password.value || 'As senhas não coincidem'
     }
 
     const submit = () => {
       valid.value = true;
-      console.log("Dados para registro:", user.value, password.value, confirmPassword.value); // Verifique os valores aqui
-
       const pureUser = {
         ...user.value,
         password: password.value,
         confirmPassword: confirmPassword.value
       };
-
-      console.log("Dados puros para registro:", pureUser); // Verifique os valores aqui
-
       register(pureUser).then(() => {
         responseStatus.value = [];
         router.push({ name: '/tarefas' });

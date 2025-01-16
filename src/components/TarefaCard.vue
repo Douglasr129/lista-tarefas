@@ -1,19 +1,27 @@
 <template>
   <v-card class="mx-auto" max-width="365">
-    <v-toolbar color="light-blue" extended light>
+    <v-toolbar color="teal-darken-1" extended light>
       <v-toolbar-title>Minhas Tarefas</v-toolbar-title>
       <v-spacer />
       <v-btn color="grey-darken-4" icon="mdi-magnify" />
       <template #extension>
-        <v-fab class="ms-4" color="cyan-accent-2" icon="mdi-plus" location="bottom left" size="40" absolute offset @click="abrirDialogo()" />
+        <v-fab
+          class="ms-4" color="blue-grey-lighten-2" icon="mdi-plus" location="bottom left"
+          size="40" absolute offset @click="abrirDialogo()"
+        />
       </template>
     </v-toolbar>
 
     <v-list lines="two" subheader>
-      <v-list-subheader title="Tarefas" inset />
+      <v-list-subheader v-if="tarefas.length" title="Tarefas" inset />
+      <v-list-subheader v-if="!tarefas.length" title="Você ainda não tem tarefas" inset />
+
       <v-list-item v-for="tarefa in tarefas" :key="tarefa.id" link>
         <template #prepend>
-          <v-icon @click="confirmarConclusao(tarefa)">{{ tarefa.concluida ? 'mdi-check-circle' : 'mdi-checkbox-blank-circle-outline' }}</v-icon>
+          <v-icon @click="confirmarConclusao(tarefa)">
+            {{ tarefa.concluida ? 'mdi-check-circle' :
+              'mdi-checkbox-blank-circle-outline' }}
+          </v-icon>
         </template>
         <v-list-item-title>{{ tarefa.titulo }}</v-list-item-title>
         <v-list-item-subtitle>{{ tarefa.descricao }}</v-list-item-subtitle>
@@ -44,7 +52,7 @@
           <v-spacer />
           <v-spacer />
           <v-spacer />
-          <large v-if="remove" class="text-red">* Deseja realmente excluir esta tarefa?</large>
+          <label v-if="remove" class="text-red">* Deseja realmente excluir esta tarefa?</label>
         </v-card-text>
         <v-card-actions>
           <v-btn v-if="remove" class="bg-red" variant="text" @click="excluirTarefa(tarefaEdicao)">
@@ -58,67 +66,89 @@
     </v-dialog>
     <v-dialog v-model="editDialog" max-width="500">
       <v-card>
-        <v-card-title> {{ tarefaEdicao.id ? 'Editar Tarefa' : 'Nova Tarefa' }} </v-card-title>
-        <v-card-text>
-          <v-text-field v-model="tarefaEdicao.titulo" label="Título" required />
-          <v-text-field v-model="tarefaEdicao.descricao" label="Descrição" required class="ellipsis-text" />
-        </v-card-text>
-        <v-card-actions>
-          <v-spacer />
-          <v-btn color="primary" variant="text" @click="salvarTarefa">
-            Salvar
-          </v-btn>
-          <v-btn color="secondary" variant="text" @click="editDialog = false">
-            Cancelar
-          </v-btn>
-        </v-card-actions>
+        <v-form ref="form" v-model="valid" @submit.prevent="submit">
+          <v-card-title> {{ tarefaEdicao.id ? 'Editar Tarefa' : 'Nova Tarefa' }} </v-card-title>
+          <v-card-text>
+            <v-text-field v-model="tarefaEdicao.titulo" label="Título" required :rules="stringRules" />
+            <v-text-field v-model="tarefaEdicao.descricao" label="Descrição" required class="ellipsis-text" :rules="stringRules" />
+          </v-card-text>
+          <v-card-actions>
+            <v-spacer />
+            <v-btn type="submit" :disabled="!valid" color="primary" variant="text">
+              Salvar
+            </v-btn>
+            <v-btn color="secondary" variant="text" @click="editDialog = false">
+              Cancelar
+            </v-btn>
+          </v-card-actions>
+        </v-form>
       </v-card>
     </v-dialog>
   </v-card>
+  <!-- Snackbar para notificações -->
+  <v-snackbar
+    v-model="snackbar.show" location="top right" :opacity="0.9" :multi-line="true"
+    :timeout="snackbar.timeout" :color="snackbar.color"
+  >
+    {{ snackbar.message }}
+  </v-snackbar>
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue'
 import type { Tarefa } from '@/interfaces/tarefa';
+import { tarefaService } from '@/services/tarefa.Service';
 
-
+const props = defineProps<{ tarefas: Tarefa[] }>()
+const tarefas = ref(props.tarefas)
 const editDialog = ref(false)
 const detailDialog = ref(false)
 const remove = ref(false)
-const tarefaEdicao = ref<Tarefa>({ id: 0, titulo: '', descricao: '', dataCadastro: new Date().toISOString(), concluida: false })
+const tarefaEdicao = ref<Tarefa>({ id: undefined, titulo: '', descricao: '', concluida: false })
+const valid = ref(false)
 
-const tarefas = ref<Tarefa[]>([
-  { id: 1, titulo: 'Tarefa 1', descricao: 'Descrição da tarefa 1', dataCadastro: new Date().toISOString(), concluida: false },
-  { id: 2, titulo: 'Tarefa 2', descricao: 'Descrição da tarefa 2', dataCadastro: new Date().toISOString(), concluida: false },
-  { id: 3, titulo: 'Tarefa 3', descricao: 'Descrição da tarefa 3', dataCadastro: new Date().toISOString(), concluida: true },
-])
+
 
 const abrirDialogo = (tarefa?: Tarefa) => {
   if (tarefa) {
     tarefaEdicao.value = { ...tarefa }
   } else {
-    tarefaEdicao.value = { id: 0, titulo: '', descricao: '', dataCadastro: new Date().toISOString(), concluida: false }
+    tarefaEdicao.value = { id: '', titulo: '', descricao: '', concluida: false }
   }
   editDialog.value = true
 }
+const stringRules = [
+      (v: string) => v.length >= 6 || 'O campo deve ter pelo menos 2 caracteres'
+    ]
 
-const salvarTarefa = () => {
-  if (tarefaEdicao.value.id === 0) {
+const submit = () => {
+  if (tarefaEdicao.value.id === '') {
     // Criar nova tarefa
-    tarefaEdicao.value.id = tarefas.value.length + 1
-    tarefas.value.push(tarefaEdicao.value)
+    tarefaEdicao.value.id = undefined;
+    tarefaService.adicionar(tarefaEdicao.value)
+      .then((req) => {
+        tarefas.value.push(req)
+        showSnackbar('Tarefa adicionada com sucesso!', 3000)
+        editDialog.value = false
+      }).catch((error) => {
+        showSnackbar(`${error}`, 3000, 'error')
+        return
+      });
   } else {
     // Atualizar tarefa existente
-    const index = tarefas.value.findIndex(t => t.id === tarefaEdicao.value.id)
-    if (index !== -1) {
-      tarefas.value[index] = { ...tarefaEdicao.value }
-    }
+    tarefaService.atualizar(tarefaEdicao.value.id!, tarefaEdicao.value)
+      .then(() => {
+        showSnackbar('Tarefa atualizada com sucesso!', 3000)
+      }).catch((error) => {
+        showSnackbar(`${error}`, 3000, 'error')
+        return
+      });
+    editDialog.value = false
   }
-  editDialog.value = false
 }
 
 const confirmarConclusao = (tarefa: Tarefa) => {
-  if (confirm(!tarefa.concluida ? "Você realmente deseja finalizar esta tarefa?": "Você realmente deseja reabrir esta tarefa?")) {
+  if (confirm(!tarefa.concluida ? "Você realmente deseja finalizar esta tarefa?" : "Você realmente deseja reabrir esta tarefa?")) {
     tarefa.concluida = !tarefa.concluida
   }
 }
@@ -134,8 +164,23 @@ const editarTarefa = (tarefa: Tarefa) => {
 }
 
 const excluirTarefa = (tarefa: Tarefa) => {
-    tarefas.value = tarefas.value.filter(t => t.id !== tarefa.id)
-    detailDialog.value = false
+  console.log('Excluir tarefa', tarefa)
+  detailDialog.value = false
+}
+// Definição do snackbar
+const snackbar = ref({
+  show: false,
+  message: '',
+  color: 'success',
+  timeout: 3000
+})
+
+const showSnackbar = (message: string, timeout = 3000, color = 'success') => {
+  snackbar.value.message = message
+  snackbar.value.timeout = timeout
+  snackbar.value.color = color
+  snackbar.value.show = true
+  setTimeout(() => { snackbar.value.show = false }, timeout)
 }
 </script>
 
